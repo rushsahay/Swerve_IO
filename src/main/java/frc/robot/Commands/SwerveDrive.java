@@ -8,11 +8,11 @@ import edu.wpi.first.math.geometry.Translation2d;
 // import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.RobotContainer;
-import frc.robot.Subsystems.SwerveDrive.Drivetrain;
-import frc.robot.Subsystems.SwerveDrive.SwerveConstants;
+import frc.robot.Subsystems.Drive.Drivetrain;
+import frc.robot.Subsystems.Drive.SwerveConstants;
 
 public class SwerveDrive extends Command {
-  private frc.robot.Subsystems.SwerveDrive.Drivetrain drivetrain = Drivetrain.getInstance();
+  private Drivetrain drivetrain = RobotContainer.m_Drivetrain;
 
   /** Creates a new SwerveDrive. */
   public SwerveDrive() {
@@ -27,7 +27,7 @@ public class SwerveDrive extends Command {
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    RobotContainer.m_Drivetrain.swerveDrive(
+    drivetrain.swerveDrive(
         -RobotContainer.driverController.getLeftY()
             * Math.abs(RobotContainer.driverController.getLeftY())
             * SwerveConstants.DriverConstants.xCoefficient, // 2.25
@@ -45,7 +45,7 @@ public class SwerveDrive extends Command {
   // Called once the command ends or is interrupted.
   @Override
   public void end(boolean interrupted) {
-    RobotContainer.m_Drivetrain.stopModules();
+    drivetrain.stopModules();
   }
 
   // Returns true when the command should end.
