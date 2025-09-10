@@ -4,13 +4,22 @@
 
 package frc.robot.Subsystems.Drive;
 
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.RobotConfig;
+import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
+import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import org.littletonrobotics.junction.Logger;
 
 public class Drivetrain extends SubsystemBase {
   /** Creates a new Drivetrain. */
@@ -28,9 +37,9 @@ public class Drivetrain extends SubsystemBase {
   private SlewRateLimiter turnLimiter =
       new SlewRateLimiter(SwerveConstants.TELE_DRIVE_MAX_ANGULAR_ACCELERATION);
 
-  // private SwerveDrivePoseEstimator poseEstimator =
-  // new SwerveDrivePoseEstimator(SwerveConstants.DRIVE_KINEMATICS, getHeadingRotation2d(),
-  // getPositions(), new Pose2d());
+  private RobotConfig config;
+  private SwerveDrivePoseEstimator poseEstimator;
+
   public Drivetrain(
       GyroIO gyroIO,
       ModuleIO leftFrontModuleIO,
@@ -52,21 +61,55 @@ public class Drivetrain extends SubsystemBase {
     rightFront = new Module(rightFrontModuleIO);
     leftBack = new Module(leftBackModuleIO);
     rightBack = new Module(rightBackModuleIO);
+    poseEstimator =
+        new SwerveDrivePoseEstimator(
+            SwerveConstants.DRIVE_KINEMATICS, getHeadingRotation2d(), getPositions(), new Pose2d());
+
+    try {
+      config = RobotConfig.fromGUISettings();
+    } catch (Exception e) {
+      // Handle exception as needed
+      e.printStackTrace();
+    }
+
+    AutoBuilder.configure(
+        this::getPose, // Robot pose supplier
+        this::setPose2d, // Method to reset odometry (will be called if your auto has a starting
+        // pose)
+        this::getRobotRelativeSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
+        (speeds, feedforwards) ->
+            driveRobotRelative(
+                speeds), // Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds.
+        // Also optionally outputs individual module feedforwards
+        SwerveConstants.pid_controls,
+        config, // The robot configuration
+        () -> {
+          // Boolean supplier that controls when the path will be mirrored for the red alliance
+          // This will flip the path being followed to the red side of the field.
+          // THE ORIGIN WILL REMAIN ON THE BLUE SIDE
+
+          var alliance = DriverStation.getAlliance();
+          if (alliance.isPresent()) {
+            return alliance.get() == DriverStation.Alliance.Red;
+          }
+          return false;
+        },
+        this // Reference to this subsystem to set requirements
+        );
   }
 
   @Override
   public void periodic() {
     // This method will be called once per scheduler run
-    // poseEstimator.update(getHeadingRotation2d(), getPositions());
-    // Logger.recordOutput("Drivetrain/Pose 2D", getPose());
-    // Logger.recordOutput("Drivetrain/Module Positions",getPositions());
-    // Logger.recordOutput("Drivetrain/Module States", getModuleStates());
-
+    poseEstimator.update(getHeadingRotation2d(), getPositions());
+    Logger.recordOutput("Drivetrain/Pose 2D", getPose());
+    Logger.recordOutput("Drivetrain/Module Positions", getPositions());
+    Logger.recordOutput("Drivetrain/Module States", getModuleStates());
   }
 
   public void zeroHeading() {
     gyro.zero();
-    // poseEstimator.resetRotation(getHeadingRotation2d());
+    poseEstimator.resetRotation(getHeadingRotation2d());
   }
 
   public void setHeading(double headingDegrees) {
@@ -130,47 +173,84 @@ public class Drivetrain extends SubsystemBase {
   public double getHeading() {
     return (Math.IEEEremainder(gyro.getYaw(), 360));
   }
-  // public SwerveModulePosition[] getPositions(){
-  //   return new
-  // SwerveModulePosition[]{leftFront.getPosition(),rightFront.getPosition(),leftBack.getPosition(),rightBack.getPosition()};
-  // }
 
-  // public void setPose2d(Pose2d pose){
-  //   gyro.setYawDegrees(pose.getRotation().getDegrees());
-  //   poseEstimator.resetPosition(getHeadingRotation2d(),getPositions(),pose);
-  // }
+  public SwerveModulePosition[] getPositions() {
+    return new SwerveModulePosition[] {
+      leftFront.getPosition(),
+      rightFront.getPosition(),
+      leftBack.getPosition(),
+      rightBack.getPosition()
+    };
+  }
 
-  // public SwerveModuleState[] getModuleStates(){
-  //   return new
-  // SwerveModuleState[]{leftFront.getState(),rightFront.getState(),leftBack.getState(),rightBack.getState()};
-  // }
+  public void setPose2d(Pose2d pose) {
+    double gyroAngle = isRedAlliance()?pose.getRotation().getDegrees()+180:pose.getRotation().getDegrees();
+    gyro.setYawDegrees(gyroAngle);
+    poseEstimator.resetPosition(Rotation2d.fromDegrees(gyroAngle), getPositions(), pose);
+  }
 
-  // public Pose2d getPose(){
-  //   return poseEstimator.getEstimatedPosition();
-  // }
+  public SwerveModuleState[] getModuleStates() {
+    return new SwerveModuleState[] {
+      leftFront.getState(), rightFront.getState(), leftBack.getState(), rightBack.getState()
+    };
+  }
 
-  // public double getBlueAbsoluteHeading() {
-  //   double relativeHeading = gyro.getYaw();
-  //   if (DriverStation.getAlliance().get().equals(Alliance.Red)) {
-  //     relativeHeading += 180;
-  //   }
-  //   return relativeHeading;
-  // }
+  public Pose2d getPose() {
+    return poseEstimator.getEstimatedPosition();
+  }
 
-  // public ChassisSpeeds getRobotRelativeSpeeds() {
-  //   return SwerveConstants.DRIVE_KINEMATICS.toChassisSpeeds(getModuleStates());
-  // }
+  public double getBlueAbsoluteHeading() {
+    double relativeHeading = gyro.getYaw();
+    if (DriverStation.getAlliance().get().equals(Alliance.Red)) {
+      relativeHeading += 180;
+    }
+    return relativeHeading;
+  }
 
-  // public void driveRobotRelative(ChassisSpeeds chassisSpeeds) {
-  //   SwerveModuleState[] moduleStates =
-  //       SwerveConstants.DRIVE_KINEMATICS.toSwerveModuleStates(chassisSpeeds);
-  //   setModuleStates(moduleStates);
-  // }
+  public ChassisSpeeds getRobotRelativeSpeeds() {
+    return SwerveConstants.DRIVE_KINEMATICS.toChassisSpeeds(getModuleStates());
+  }
 
-  // public boolean isRedAlliance() {
-  //   if (DriverStation.getAlliance().isPresent()) {
-  //     return DriverStation.getAlliance().get() == DriverStation.Alliance.Red;
-  //   }
-  //   return false;
-  // }
+  public void driveRobotRelative(ChassisSpeeds chassisSpeeds) {
+    SwerveModuleState[] moduleStates =
+        SwerveConstants.DRIVE_KINEMATICS.toSwerveModuleStates(chassisSpeeds);
+    setModuleStates(moduleStates);
+  }
+
+  public boolean isRedAlliance() {
+    if (DriverStation.getAlliance().isPresent()) {
+      return DriverStation.getAlliance().get() == DriverStation.Alliance.Red;
+    }
+    return false;
+  }
+
+  public void setVisionMeasurementStdDevs(double... numbers) {
+    poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(numbers[0], numbers[1], numbers[2]));
+  }
+
+  public void addVisionMeasurement(Pose2d visionPoseEstimate, double timestampSeconds) {
+    poseEstimator.addVisionMeasurement(visionPoseEstimate, timestampSeconds);
+  }
+
+  public void drive(
+      Translation2d translation, double rotation, boolean fieldRelative, boolean isOpenLooop) {
+    ChassisSpeeds chassisSpeeds;
+    if (fieldRelative) {
+      chassisSpeeds =
+          ChassisSpeeds.fromFieldRelativeSpeeds(
+              translation.getX(), translation.getY(), rotation, getHeadingRotation2d());
+    } else {
+      chassisSpeeds = new ChassisSpeeds(translation.getX(), translation.getY(), rotation);
+    }
+
+    SwerveModuleState[] moduleStates =
+        SwerveConstants.DRIVE_KINEMATICS.toSwerveModuleStates(chassisSpeeds);
+    SwerveDriveKinematics.desaturateWheelSpeeds(moduleStates, SwerveConstants.DRIVETRAIN_MAX_SPEED);
+
+    leftFront.setDesiredState(moduleStates[0]);
+    rightFront.setDesiredState(moduleStates[1]);
+
+    leftBack.setDesiredState(moduleStates[2]);
+    rightBack.setDesiredState(moduleStates[3]);
+  }
 }

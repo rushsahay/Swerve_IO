@@ -5,6 +5,7 @@ import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.util.Units;
+import org.ironmaple.simulation.drivesims.configs.DriveTrainSimulationConfig;
 
 public class SwerveConstants {
 
@@ -147,4 +148,5 @@ public class SwerveConstants {
           new Translation2d(WHEEL_BASE / 2, -TRACK_WIDTH / 2),
           new Translation2d(-WHEEL_BASE / 2, TRACK_WIDTH / 2),
           new Translation2d(-WHEEL_BASE / 2, -TRACK_WIDTH / 2));
+  public static final DriveTrainSimulationConfig SIM_CONFIG = DriveTrainSimulationConfig.Default();
 }
