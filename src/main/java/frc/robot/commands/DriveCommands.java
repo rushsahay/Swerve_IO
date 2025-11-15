@@ -36,6 +36,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
+import org.littletonrobotics.junction.Logger;
 
 public class DriveCommands {
     private static final double DEADBAND = 0.1;
@@ -89,6 +90,7 @@ public class DriveCommands {
                     speeds = ChassisSpeeds.fromFieldRelativeSpeeds(
                             speeds,
                             isFlipped ? drive.getRotation().plus(new Rotation2d(Math.PI)) : drive.getRotation());
+                    Logger.recordOutput("Drivetrain/Turn Speeds", speeds.omegaRadiansPerSecond);
                     drive.runVelocity(speeds);
                 },
                 drive);
