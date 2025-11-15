@@ -73,8 +73,19 @@ public class Module {
     public void runCharacterization(double output) {
         // io.setDriveOpenLoop(output);
         // io.setTurnPosition(new Rotation2d());
-        io.setDriveOpenLoop(0);
-        io.setTurnOpenLoop(output);
+        // Turn FF SysID
+        // io.setDriveOpenLoop(0);
+        // io.setTurnOpenLoop(output);
+        // MOI SysID
+        io.setDriveOpenLoop(output);
+        io.setTurnPosition(Rotation2d.fromDegrees(
+                switch (index) {
+                    case 0 -> 135.0;
+                    case 1 -> 45.0;
+                    case 2 -> -135.0;
+                    case 3 -> -45.0;
+                    default -> 0.0;
+                }));
     }
 
     /** Disables all outputs to motors. */

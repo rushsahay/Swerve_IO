@@ -294,6 +294,12 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
         poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
     }
 
+    public void resetGyro(Pose2d pose) {
+        resetSimulationPoseCallBack.accept(pose);
+        gyroIO.resetHeading(pose.getRotation().getDegrees());
+        poseEstimator.resetPosition(pose.getRotation(), getModulePositions(), pose);
+    }
+
     /** Adds a new timestamped vision measurement. */
     @Override
     public void accept(Pose2d visionRobotPoseMeters, double timestampSeconds, Matrix<N3, N1> visionMeasurementStdDevs) {
