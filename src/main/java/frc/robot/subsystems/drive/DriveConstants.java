@@ -14,6 +14,8 @@
 package frc.robot.subsystems.drive;
 
 import static edu.wpi.first.units.Units.*;
+import static frc.robot.subsystems.drive.DriveConstants.module_average_kA_Drive;
+import static frc.robot.subsystems.drive.DriveConstants.module_average_kA_Turn;
 
 import com.pathplanner.lib.config.ModuleConfig;
 import com.pathplanner.lib.config.RobotConfig;
@@ -27,7 +29,7 @@ import org.ironmaple.simulation.drivesims.configs.SwerveModuleSimulationConfig;
 
 public class DriveConstants {
     public static final double maxSpeedMetersPerSec = 4.3; // 5.3; // 4.8;
-    public static final double odometryFrequency = 100.0; // Hz
+    public static final double odometryFrequency = 250.0; // Hz
     public static final double trackWidth = Units.inchesToMeters(25);
     public static final double wheelBase = Units.inchesToMeters(25);
     public static final double driveBaseRadius = Math.sqrt((Math.pow(trackWidth, 2) + Math.pow(wheelBase, 2)))
@@ -100,6 +102,9 @@ public class DriveConstants {
     public static final double turnEncoderPositionFactor = 2 * Math.PI / turnMotorReduction; // Rotations -> Radians
     public static final double turnEncoderVelocityFactor = (2 * Math.PI) / 60.0 / turnMotorReduction; // RPM -> Rad/Sec
 
+    //kA Constants
+    public static final double module_average_kA_Drive = 0.3;
+    public static final double module_average_kA_Turn = 0.574665;
     // Turn PID configuration
     public static final double turnKp = 4.0; // 2.0; // 1.6; // 0.8; // 0.575; // 0.01; // 2.0;
     public static final double turnKd = 0.0;
@@ -112,7 +117,7 @@ public class DriveConstants {
     public static final double angularKa = 0;
     // PathPlanner configuration
     public static final double robotMassKg = 74.088;
-    public static final double robotMOI = 6.883; // 6.883;
+    public static final double robotMOI = robotMassKg*(trackWidth/2)*(module_average_kA_Turn/module_average_kA_Drive);//6.883; // 6.883;
     public static final double wheelCOF = 1.2;
     public static final RobotConfig ppConfig = new RobotConfig(
             robotMassKg,
@@ -140,4 +145,17 @@ public class DriveConstants {
                     Meters.of(wheelRadiusMeters),
                     KilogramSquareMeters.of(0.02),
                     wheelCOF));
+
+    // Module 1 Drive kA = 0.016577;
+    // Module 2 Drive kA = 0.019138;
+    // Module 3 Drive kA = 0.012256;
+    // Module 4 Drive kA = 0.022477;
+     
+
+    // Module 1 Turn kA = 0.18754;
+    // Module 2 Turn kA =0.96179;
+    //Module 3 Turn kA = 0.054505;
+    //Module 4 Turn kA = 0.3;
+    
+
 }
