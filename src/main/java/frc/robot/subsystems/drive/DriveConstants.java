@@ -102,7 +102,7 @@ public class DriveConstants {
     public static final double turnEncoderPositionFactor = 2 * Math.PI / turnMotorReduction; // Rotations -> Radians
     public static final double turnEncoderVelocityFactor = (2 * Math.PI) / 60.0 / turnMotorReduction; // RPM -> Rad/Sec
 
-    //kA Constants
+    // kA Constants
     public static final double module_average_kA_Drive = 0.3;
     public static final double module_average_kA_Turn = 0.574665;
     // Turn PID configuration
@@ -117,7 +117,8 @@ public class DriveConstants {
     public static final double angularKa = 0;
     // PathPlanner configuration
     public static final double robotMassKg = 74.088;
-    public static final double robotMOI = robotMassKg*(trackWidth/2)*(module_average_kA_Turn/module_average_kA_Drive);//6.883; // 6.883;
+    public static final double robotMOI =
+            robotMassKg * (trackWidth / 2) * (module_average_kA_Turn / module_average_kA_Drive); // 6.883; // 6.883;
     public static final double wheelCOF = 1.2;
     public static final RobotConfig ppConfig = new RobotConfig(
             robotMassKg,
@@ -150,12 +151,10 @@ public class DriveConstants {
     // Module 2 Drive kA = 0.019138;
     // Module 3 Drive kA = 0.012256;
     // Module 4 Drive kA = 0.022477;
-     
 
     // Module 1 Turn kA = 0.18754;
     // Module 2 Turn kA =0.96179;
-    //Module 3 Turn kA = 0.054505;
-    //Module 4 Turn kA = 0.3;
-    
+    // Module 3 Turn kA = 0.054505;
+    // Module 4 Turn kA = 0.3;
 
 }

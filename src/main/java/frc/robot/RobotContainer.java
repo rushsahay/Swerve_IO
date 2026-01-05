@@ -15,7 +15,6 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.subsystems.vision.VisionConstants.*;
-import static frc.robot.subsystems.vision.VisionConstants.robotToCamera1;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -32,6 +31,18 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
+import frc.robot.subsystems.Arm.Arm;
+import frc.robot.subsystems.Arm.Arm.ArmPositions;
+import frc.robot.subsystems.Arm.ArmIO;
+import frc.robot.subsystems.Arm.ArmIOSim;
+import frc.robot.subsystems.Arm.ArmIOSparkMax;
+import frc.robot.subsystems.Arm.ArmVisualizer;
+import frc.robot.subsystems.GroundIntake.GroundIntake;
+import frc.robot.subsystems.GroundIntake.GroundIntake.GroundIntakeStates;
+import frc.robot.subsystems.GroundIntake.GroundIntakeIO;
+import frc.robot.subsystems.GroundIntake.GroundIntakeIOSim;
+import frc.robot.subsystems.GroundIntake.GroundIntakeIOSparkMax;
+import frc.robot.subsystems.GroundIntake.GroundIntakeVisualizer;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.vision.*;
 import org.ironmaple.simulation.SimulatedArena;
@@ -49,6 +60,10 @@ public class RobotContainer {
     // Subsystems
     private final Drive drive;
     private final Vision vision;
+    private final Arm arm;
+    private ArmVisualizer armVisualizer = null;
+    public static GroundIntake groundIntake;
+    private GroundIntakeVisualizer groundIntakeVisualizer = null;
     private SwerveDriveSimulation driveSimulation = null;
 
     // Controller
@@ -76,6 +91,8 @@ public class RobotContainer {
                         new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation),
                         new VisionIOLimelight(VisionConstants.camera1Name, drive::getRotation));
 
+                this.arm = new Arm(new ArmIOSparkMax());
+                this.groundIntake = new GroundIntake(new GroundIntakeIOSparkMax());
                 break;
             case SIM:
                 // create a maple-sim swerve drive simulation instance
@@ -99,6 +116,11 @@ public class RobotContainer {
                         new VisionIOPhotonVisionSim(
                                 camera1Name, robotToCamera1, driveSimulation::getSimulatedDriveTrainPose));
 
+                arm = new Arm(new ArmIOSim());
+                armVisualizer = new ArmVisualizer();
+
+                groundIntake = new GroundIntake(new GroundIntakeIOSim());
+                groundIntakeVisualizer = new GroundIntakeVisualizer();
                 break;
             default:
                 // Replayed robot, disable IO implementations
@@ -110,7 +132,8 @@ public class RobotContainer {
                         new ModuleIO() {},
                         (pose) -> {});
                 vision = new Vision(drive, new VisionIO() {}, new VisionIO() {});
-
+                arm = new Arm(new ArmIO() {});
+                groundIntake = new GroundIntake(new GroundIntakeIO() {});
                 break;
         }
 
@@ -142,15 +165,25 @@ public class RobotContainer {
                 drive, () -> -controller.getLeftY(), () -> -controller.getLeftX(), () -> -controller.getRightX()));
 
         // Lock to 0° when A button is held
-        controller
-                .a()
-                .whileTrue(DriveCommands.joystickDriveAtAngle(
-                        drive, () -> -controller.getLeftY(), () -> -controller.getLeftX(), () -> new Rotation2d()));
+        // controller
+        //         .a()
+        //         .whileTrue(DriveCommands.joystickDriveAtAngle(
+        //                 drive, () -> -controller.getLeftY(), () -> -controller.getLeftX(), () -> new Rotation2d()));
 
+        controller.x().onTrue(new InstantCommand(() -> arm.setWantedPosition(ArmPositions.A2), arm));
+        controller.a().onTrue(new InstantCommand(() -> arm.setWantedPosition(ArmPositions.Idle), arm));
+
+        controller
+                .y()
+                .onTrue(new InstantCommand(() -> groundIntake.setWantedState(GroundIntakeStates.Hold), groundIntake));
+        controller
+                .b()
+                .onTrue(new InstantCommand(() -> groundIntake.setWantedState(GroundIntakeStates.Rest), groundIntake));
         // Switch to X pattern when X button is pressed
         controller.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
         // Reset gyro / odometry
+        // Look into implementing instead
         final Runnable resetGyro = Constants.currentMode == Constants.Mode.SIM
                 ? () -> drive.resetOdometry(
                         driveSimulation
@@ -160,29 +193,29 @@ public class RobotContainer {
         controller.start().onTrue(Commands.runOnce(resetGyro, drive).ignoringDisable(true));
 
         // Example Coral Placement Code
-        // TODO: delete these code for your own project
-        if (Constants.currentMode == Constants.Mode.SIM) {
-            // L4 placement
-            controller.y().onTrue(Commands.runOnce(() -> SimulatedArena.getInstance()
-                    .addGamePieceProjectile(new ReefscapeCoralOnFly(
-                            driveSimulation.getSimulatedDriveTrainPose().getTranslation(),
-                            new Translation2d(0.4, 0),
-                            driveSimulation.getDriveTrainSimulatedChassisSpeedsFieldRelative(),
-                            driveSimulation.getSimulatedDriveTrainPose().getRotation(),
-                            Meters.of(2),
-                            MetersPerSecond.of(1.5),
-                            Degrees.of(-80)))));
-            // L3 placement
-            controller.b().onTrue(Commands.runOnce(() -> SimulatedArena.getInstance()
-                    .addGamePieceProjectile(new ReefscapeCoralOnFly(
-                            driveSimulation.getSimulatedDriveTrainPose().getTranslation(),
-                            new Translation2d(0.4, 0),
-                            driveSimulation.getDriveTrainSimulatedChassisSpeedsFieldRelative(),
-                            driveSimulation.getSimulatedDriveTrainPose().getRotation(),
-                            Meters.of(1.35),
-                            MetersPerSecond.of(1.5),
-                            Degrees.of(-60)))));
-        }
+        // // TODO: delete these code for your own project Godlie scoring L4s HAHA - Rush
+        // if (Constants.currentMode == Constants.Mode.SIM) {
+        //     // L4 placement
+        //     controller.y().onTrue(Commands.runOnce(() -> SimulatedArena.getInstance()
+        //             .addGamePieceProjectile(new ReefscapeCoralOnFly(
+        //                     driveSimulation.getSimulatedDriveTrainPose().getTranslation(),
+        //                     new Translation2d(0.4, 0),
+        //                     driveSimulation.getDriveTrainSimulatedChassisSpeedsFieldRelative(),
+        //                     driveSimulation.getSimulatedDriveTrainPose().getRotation(),
+        //                     Meters.of(2),
+        //                     MetersPerSecond.of(1.5),
+        //                     Degrees.of(-80)))));
+        //     // L3 placement
+        //     controller.b().onTrue(Commands.runOnce(() -> SimulatedArena.getInstance()
+        //             .addGamePieceProjectile(new ReefscapeCoralOnFly(
+        //                     driveSimulation.getSimulatedDriveTrainPose().getTranslation(),
+        //                     new Translation2d(0.4, 0),
+        //                     driveSimulation.getDriveTrainSimulatedChassisSpeedsFieldRelative(),
+        //                     driveSimulation.getSimulatedDriveTrainPose().getRotation(),
+        //                     Meters.of(1.35),
+        //                     MetersPerSecond.of(1.5),
+        //                     Degrees.of(-60)))));
+        // }
         resetHeadingTrigger.onTrue(new InstantCommand(() -> {
             Pose2d currentPose = drive.getPose();
             Pose2d resetPose = new Pose2d(
@@ -210,8 +243,9 @@ public class RobotContainer {
 
     public void updateSimulation() {
         if (Constants.currentMode != Constants.Mode.SIM) return;
-
         SimulatedArena.getInstance().simulationPeriodic();
+        armVisualizer.updateDistance(arm.getEncoderPosition());
+        groundIntakeVisualizer.updateAngle(groundIntake.getPosition());
         Logger.recordOutput("FieldSimulation/RobotPosition", driveSimulation.getSimulatedDriveTrainPose());
         Logger.recordOutput(
                 "FieldSimulation/Coral", SimulatedArena.getInstance().getGamePiecesArrayByType("Coral"));
