@@ -47,7 +47,6 @@ import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.vision.*;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
-import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
@@ -119,7 +118,7 @@ public class RobotContainer {
                 arm = new Arm(new ArmIOSim());
                 armVisualizer = new ArmVisualizer();
 
-                groundIntake = new GroundIntake(new GroundIntakeIOSim());
+                groundIntake = new GroundIntake(new GroundIntakeIOSim(driveSimulation));
                 groundIntakeVisualizer = new GroundIntakeVisualizer();
                 break;
             default:
@@ -175,7 +174,7 @@ public class RobotContainer {
 
         controller
                 .y()
-                .onTrue(new InstantCommand(() -> groundIntake.setWantedState(GroundIntakeStates.Hold), groundIntake));
+                .onTrue(new InstantCommand(() -> groundIntake.setWantedState(GroundIntakeStates.Intake), groundIntake));
         controller
                 .b()
                 .onTrue(new InstantCommand(() -> groundIntake.setWantedState(GroundIntakeStates.Rest), groundIntake));

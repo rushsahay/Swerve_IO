@@ -15,6 +15,10 @@ import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.Mass;
 import edu.wpi.first.units.measure.MutVoltage;
 import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
+import frc.robot.subsystems.drive.DriveConstants;
+import org.ironmaple.simulation.IntakeSimulation;
+import org.ironmaple.simulation.IntakeSimulation.IntakeSide;
+import org.ironmaple.simulation.drivesims.AbstractDriveTrainSimulation;
 
 public class GroundIntakeIOSim implements GroundIntakeIO {
 
@@ -35,15 +39,27 @@ public class GroundIntakeIOSim implements GroundIntakeIO {
             true,
             startingAngle.in(Radians));
     private MutVoltage appliedVolts = new MutVoltage(0, 0, Volts);
+    private AbstractDriveTrainSimulation driveTrain;
+    private final IntakeSimulation intakeSim;
+    private final double metersIntakeInsideBot = 0.3;
 
-    public GroundIntakeIOSim() {}
+    public GroundIntakeIOSim(AbstractDriveTrainSimulation driveTrain) {
+        this.driveTrain = driveTrain;
+        intakeSim = IntakeSimulation.OverTheBumperIntake(
+                "Algae",
+                driveTrain,
+                Meters.of(DriveConstants.trackWidth),
+                Meters.of(armLength.in(Meters)-metersIntakeInsideBot),
+                IntakeSide.FRONT,
+                1);
+    }
 
     @Override
     public void updateInputs(GroundIntakeIOInputs inputs) {
         sim.update(0.02);
         inputs.encoderPosition = Rotations.convertFrom(sim.getAngleRads(), Radians)
                 + GroundIntakeConstants.ControlConstants.visualOffsetRotations;
-        inputs.algaeDetected = true;
+        inputs.algaeDetected = intakeSim.getGamePiecesAmount() != 0;
         inputs.rollerVoltage = 0;
         inputs.rollerCurrent = 0;
         inputs.pivotVoltage = appliedVolts.in(Volts);
@@ -57,5 +73,19 @@ public class GroundIntakeIOSim implements GroundIntakeIO {
         double clampedEffort = -MathUtil.clamp(voltage, -12, 12);
         appliedVolts.mut_replace(clampedEffort, Volts);
         sim.setInputVoltage(clampedEffort);
+    }
+
+    @Override
+    public void setRollerSpeed(double speed) {
+        if (speed != 0) {
+            intakeSim.startIntake();
+        } else {
+            intakeSim.stopIntake();
+            if (Rotations.convertFrom(sim.getAngleRads(), Radians)
+                            + GroundIntakeConstants.ControlConstants.visualOffsetRotations
+                    < GroundIntakeConstants.ControlConstants.algaeHoldPosition) {
+                intakeSim.setGamePiecesCount(0);
+            }
+        }
     }
 }
